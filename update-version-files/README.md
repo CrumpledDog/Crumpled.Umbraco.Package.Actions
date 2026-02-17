@@ -56,8 +56,9 @@ A composite GitHub Action that updates version numbers in umbraco-package.json, 
     semver: ${{ needs.setup.outputs.semver }}
     path-to-extension: 'src/Extension'
 
-- name: Use file version in build
-  run: dotnet build -p:FileVersion=${{ steps.version.outputs.file-version }}
+- name: Pack NuGet package
+  working-directory: src/Extension
+  run: dotnet pack --configuration Release /p:PackageVersion=${{ needs.setup.outputs.semver }} /p:FileVersion=${{ steps.version.outputs.file-version }}
 ```
 
 ## Requirements
@@ -122,11 +123,9 @@ jobs:
           semver: ${{ needs.setup.outputs.semver }}
           path-to-extension: 'src/MyPackage'
       
-      - name: Build with updated versions
-        run: |
-          dotnet build -c Release \
-            -p:Version=${{ needs.setup.outputs.semver }} \
-            -p:FileVersion=${{ steps.update-version.outputs.file-version }}
+      - name: Pack NuGet package
+        working-directory: src/MyPackage
+        run: dotnet pack --configuration Release /p:PackageVersion=${{ needs.setup.outputs.semver }} /p:FileVersion=${{ steps.update-version.outputs.file-version }}
 ```
 
 ## License
