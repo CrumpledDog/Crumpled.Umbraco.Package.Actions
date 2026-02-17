@@ -27,6 +27,13 @@ runs:
         SEMVER="${{ inputs.semver }}"
         PATH_TO_EXTENSION="${{ inputs.path-to-extension }}"
         
+        if [ -z "$SEMVER" ] || [ -z "$PATH_TO_EXTENSION" ]; then
+          echo "Error: Missing required arguments"
+          echo "SEMVER: '$SEMVER'"
+          echo "PATH_TO_EXTENSION: '$PATH_TO_EXTENSION'"
+          exit 1
+        fi
+        
         echo "Updating version to $SEMVER in $PATH_TO_EXTENSION"
         
         # Update Client/public/umbraco-package.json if it exists
