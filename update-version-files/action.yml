@@ -13,7 +13,7 @@ inputs:
 outputs:
   file-version:
     description: 'The numeric file version (e.g., 1.0.0.1)'
-    value: ${{ steps.update.outputs.file_version }}
+    value: ${{ steps.update.outputs.file-version }}
 
 runs:
   using: 'composite'
