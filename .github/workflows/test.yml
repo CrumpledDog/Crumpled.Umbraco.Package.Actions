@@ -1,0 +1,70 @@
+name: Test Actions
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-update-version-files:
+    name: Test Update Version Files
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Create test structure
+        run: |
+          mkdir -p test-project/src/TestExtension/Client/public
+          mkdir -p test-project/src/TestExtension/wwwroot
+          
+          # Create test files
+          echo '{"version": "0.0.0"}' > test-project/src/TestExtension/Client/public/umbraco-package.json
+          echo '{"version": "0.0.0"}' > test-project/src/TestExtension/Client/package.json
+          echo '{"version": "0.0.0"}' > test-project/src/TestExtension/wwwroot/umbraco-package.json
+          echo '{"version": "0.0.0"}' > test-project/src/TestExtension/wwwroot/package.manifest
+      
+      - name: Test with prerelease version
+        uses: ./update-version-files
+        with:
+          semver: '1.0.0-alpha.1'
+          path-to-extension: 'test-project/src/TestExtension'
+      
+      - name: Verify prerelease updates
+        run: |
+          CLIENT_PKG=$(jq -r '.version' test-project/src/TestExtension/Client/public/umbraco-package.json)
+          CLIENT_JSON=$(jq -r '.version' test-project/src/TestExtension/Client/package.json)
+          WWWROOT_PKG=$(jq -r '.version' test-project/src/TestExtension/wwwroot/umbraco-package.json)
+          MANIFEST=$(jq -r '.version' test-project/src/TestExtension/wwwroot/package.manifest)
+          
+          echo "Client/public/umbraco-package.json: $CLIENT_PKG"
+          echo "Client/package.json: $CLIENT_JSON"
+          echo "wwwroot/umbraco-package.json: $WWWROOT_PKG (should be 0.0.0 - not updated)"
+          echo "wwwroot/package.manifest: $MANIFEST"
+          
+          if [ "$CLIENT_PKG" != "1.0.0-alpha.1" ]; then
+            echo "ERROR: Client package version incorrect"
+            exit 1
+          fi
+          
+          if [ "$CLIENT_JSON" != "1.0.0-alpha.1" ]; then
+            echo "ERROR: Client package.json version incorrect"
+            exit 1
+          fi
+          
+          if [ "$WWWROOT_PKG" != "0.0.0" ]; then
+            echo "ERROR: wwwroot package should not be updated when Client version exists"
+            exit 1
+          fi
+          
+          if [ "$MANIFEST" != "1.0.0-alpha.1" ]; then
+            echo "ERROR: package.manifest version incorrect"
+            exit 1
+          fi
+          
+          echo "✅ All version checks passed!"
+      
+      - name: Clean up
+        if: always()
+        run: rm -rf test-project

@@ -1,0 +1,109 @@
+name: PR Validation
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'src/**'
+      - '**.csproj'
+      - '.github/workflows/**'
+
+jobs:
+  validate:
+    name: Validate Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.x'
+      
+      - name: Restore dependencies
+        run: dotnet restore
+      
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+      
+      - name: Run tests
+        run: dotnet test --configuration Release --no-build --verbosity normal
+      
+      - name: Check version consistency
+        shell: bash
+        run: |
+          # Check if Client/public/umbraco-package.json exists
+          if [ -f "src/YourExtension/Client/public/umbraco-package.json" ]; then
+            CLIENT_VERSION=$(jq -r '.version' src/YourExtension/Client/public/umbraco-package.json)
+            CLIENT_PKG_VERSION=$(jq -r '.version' src/YourExtension/Client/package.json)
+            
+            if [ "$CLIENT_VERSION" != "$CLIENT_PKG_VERSION" ]; then
+              echo "❌ Version mismatch between Client files"
+              echo "   Client/public/umbraco-package.json: $CLIENT_VERSION"
+              echo "   Client/package.json: $CLIENT_PKG_VERSION"
+              exit 1
+            fi
+            
+            echo "✅ Client versions are consistent: $CLIENT_VERSION"
+          fi
+          
+          # Check if wwwroot files exist
+          if [ -f "src/YourExtension/wwwroot/umbraco-package.json" ] && [ -f "src/YourExtension/wwwroot/package.manifest" ]; then
+            WWWROOT_PKG=$(jq -r '.version' src/YourExtension/wwwroot/umbraco-package.json)
+            MANIFEST=$(jq -r '.version' src/YourExtension/wwwroot/package.manifest)
+            
+            if [ "$WWWROOT_PKG" != "$MANIFEST" ]; then
+              echo "❌ Version mismatch between wwwroot files"
+              echo "   wwwroot/umbraco-package.json: $WWWROOT_PKG"
+              echo "   wwwroot/package.manifest: $MANIFEST"
+              exit 1
+            fi
+            
+            echo "✅ wwwroot versions are consistent: $WWWROOT_PKG"
+          fi
+
+  lint:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.x'
+      
+      - name: Format check
+        run: dotnet format --verify-no-changes --verbosity diagnostic
+      
+      - name: Lint Client code (if exists)
+        if: hashFiles('src/YourExtension/Client/package.json') != ''
+        working-directory: src/YourExtension/Client
+        run: |
+          npm ci
+          npm run lint
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+      
+      - name: Upload Trivy results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'

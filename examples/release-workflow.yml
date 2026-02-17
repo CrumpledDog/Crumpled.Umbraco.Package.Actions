@@ -1,0 +1,126 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+      - 'v*.*.*-*'
+
+jobs:
+  setup:
+    name: Setup Release
+    runs-on: ubuntu-latest
+    outputs:
+      semver: ${{ steps.version.outputs.semver }}
+      is-prerelease: ${{ steps.version.outputs.is-prerelease }}
+    steps:
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "semver=$VERSION" >> $GITHUB_OUTPUT
+          
+          if [[ "$VERSION" == *"-"* ]]; then
+            echo "is-prerelease=true" >> $GITHUB_OUTPUT
+          else
+            echo "is-prerelease=false" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "Release version: $VERSION"
+
+  build:
+    name: Build and Package
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for GitVersion
+      
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.x'
+      
+      - name: Update version files
+        id: update-version
+        uses: crumpled/Crumpled.Umbraco.Package.Actions/update-version-files@v1
+        with:
+          semver: ${{ needs.setup.outputs.semver }}
+          path-to-extension: 'src/YourExtension'
+      
+      - name: Restore dependencies
+        run: dotnet restore
+      
+      - name: Build
+        run: |
+          dotnet build \
+            --configuration Release \
+            --no-restore \
+            -p:Version=${{ needs.setup.outputs.semver }} \
+            -p:FileVersion=${{ steps.update-version.outputs.file-version }}
+      
+      - name: Pack
+        run: |
+          dotnet pack \
+            --configuration Release \
+            --no-build \
+            -p:PackageVersion=${{ needs.setup.outputs.semver }} \
+            --output ./artifacts
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: ./artifacts/*.nupkg
+          if-no-files-found: error
+
+  publish-nuget:
+    name: Publish to NuGet
+    needs: [setup, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: packages
+          path: ./packages
+      
+      - name: Push to NuGet
+        run: |
+          dotnet nuget push ./packages/*.nupkg \
+            --api-key ${{ secrets.NUGET_API_KEY }} \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
+      
+      - name: Push to GitHub Packages (optional)
+        run: |
+          dotnet nuget push ./packages/*.nupkg \
+            --api-key ${{ secrets.GITHUB_TOKEN }} \
+            --source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json \
+            --skip-duplicate
+
+  create-release:
+    name: Create GitHub Release
+    needs: [setup, publish-nuget]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: packages
+          path: ./packages
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Release ${{ needs.setup.outputs.semver }}
+          prerelease: ${{ needs.setup.outputs.is-prerelease == 'true' }}
+          generate_release_notes: true
+          files: ./packages/*.nupkg
