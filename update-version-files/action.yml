@@ -86,4 +86,4 @@ runs:
         echo "SEMVER=$SEMVER"
         echo "FILE_VERSION=$FILE_VERSION"
         
-        echo "file_version=$FILE_VERSION" >> $GITHUB_OUTPUT
+        echo "file-version=$FILE_VERSION" >> $GITHUB_OUTPUT
