@@ -55,9 +55,20 @@ runs:
         fi
         
         # Update package.manifest if it exists (Umbraco v13)
+        PACKAGE_MANIFEST=""
         if [ -f "$PATH_TO_EXTENSION/wwwroot/package.manifest" ]; then
-          jq '.version = "'"$SEMVER"'"' "$PATH_TO_EXTENSION/wwwroot/package.manifest" > temp.json && mv temp.json "$PATH_TO_EXTENSION/wwwroot/package.manifest"
-          echo "Updated version in $PATH_TO_EXTENSION/wwwroot/package.manifest to $SEMVER"
+          PACKAGE_MANIFEST="$PATH_TO_EXTENSION/wwwroot/package.manifest"
+        else
+          # Search for package.manifest in App_Plugins for non-RCL projects
+          FOUND_MANIFEST=$(find "$PATH_TO_EXTENSION" -name "package.manifest" -type f 2>/dev/null | head -n 1)
+          if [ -n "$FOUND_MANIFEST" ]; then
+            PACKAGE_MANIFEST="$FOUND_MANIFEST"
+          fi
+        fi
+        
+        if [ -n "$PACKAGE_MANIFEST" ]; then
+          jq '.version = "'"$SEMVER"'"' "$PACKAGE_MANIFEST" > temp.json && mv temp.json "$PACKAGE_MANIFEST"
+          echo "Updated version in $PACKAGE_MANIFEST to $SEMVER"
         fi
         
         # Convert semantic version to numeric file version (e.g., 1.0.0-alpha.1 -> 1.0.0.1)
