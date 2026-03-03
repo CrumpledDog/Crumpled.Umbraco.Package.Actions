@@ -48,6 +48,12 @@ runs:
           echo "Updated version in $PATH_TO_EXTENSION/Client/package.json to $SEMVER"
         fi
         
+        # Update package.json if it exists (but not if Client version exists)
+        if [ -f "$PATH_TO_EXTENSION/package.json" ] && [ ! -f "$PATH_TO_EXTENSION/Client/package.json" ]; then
+          jq '.version = "'"$SEMVER"'"' "$PATH_TO_EXTENSION/package.json" > temp2.json && mv temp2.json "$PATH_TO_EXTENSION/package.json"
+          echo "Updated version in $PATH_TO_EXTENSION/package.json to $SEMVER"
+        fi
+        
         # Update umbraco-package.json if it exists (but not if Client version exists)
         if [ -f "$PATH_TO_EXTENSION/wwwroot/umbraco-package.json" ] && [ ! -f "$PATH_TO_EXTENSION/Client/public/umbraco-package.json" ]; then
           jq '.version = "'"$SEMVER"'"' "$PATH_TO_EXTENSION/wwwroot/umbraco-package.json" > temp.json && mv temp.json "$PATH_TO_EXTENSION/wwwroot/umbraco-package.json"
