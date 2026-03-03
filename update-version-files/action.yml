@@ -88,7 +88,7 @@ runs:
           # Stable release: Find highest pre-release number for this version and add 1
           BASE_VERSION="$SEMVER"
           # Get all tags matching this version with pre-release suffix
-          MAX_PRERELEASE=$(git tag -l "v${BASE_VERSION}-*" | grep -o '[0-9]\+$' | sort -n | tail -1)
+          MAX_PRERELEASE=$(git tag -l "v${BASE_VERSION}-*" 2>/dev/null | grep -o '[0-9]\+$' | sort -n | tail -1 || echo "")
           if [ -z "$MAX_PRERELEASE" ]; then
             # No pre-releases found, use 1
             FILE_VERSION="${BASE_VERSION}.1"
