@@ -7,7 +7,9 @@ A composite GitHub Action that updates version numbers in umbraco-package.json, 
 - Updates `Client/public/umbraco-package.json` (if exists)
 - Updates `Client/package.json` (if exists)
 - Updates `wwwroot/umbraco-package.json` (if exists and Client version doesn't exist)
+- Searches for `umbraco-package.json` in `wwwroot/` subdirectories (e.g., `wwwroot/App_Plugins/*/umbraco-package.json`) if direct path doesn't exist
 - Updates `wwwroot/package.manifest` (if exists, Umbraco v13)
+- Searches for `package.manifest` anywhere in the extension directory if not in wwwroot root
 - Converts semantic version to numeric file version
 - Outputs the file version for use in subsequent steps
 
@@ -86,9 +88,15 @@ This ensures that stable releases have a higher file version than any pre-releas
 The action handles different Umbraco package structures:
 
 1. **Client-based packages** (Umbraco v14+): Updates `Client/public/umbraco-package.json` and `Client/package.json`
-2. **wwwroot-based packages**: Updates `wwwroot/umbraco-package.json` and `wwwroot/package.manifest`
+2. **wwwroot-based packages**: Updates `wwwroot/umbraco-package.json` or searches `wwwroot/` subdirectories
+3. **Legacy packages**: Updates `wwwroot/package.manifest` or searches entire extension directory
 
 If a `Client/public/umbraco-package.json` exists, the `wwwroot/umbraco-package.json` will NOT be updated (Client version takes precedence).
+
+For packages without Client folders, the action will:
+- Check `wwwroot/umbraco-package.json` directly first
+- If not found, search for the first `umbraco-package.json` file anywhere in `wwwroot/` (e.g., `wwwroot/App_Plugins/PackageName/umbraco-package.json`)
+- Similarly for `package.manifest`: check `wwwroot/package.manifest` first, then search the entire extension directory
 
 ## Example Workflow
 

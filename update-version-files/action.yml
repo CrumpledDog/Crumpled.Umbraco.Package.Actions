@@ -55,9 +55,22 @@ runs:
         fi
         
         # Update umbraco-package.json if it exists (but not if Client version exists)
-        if [ -f "$PATH_TO_EXTENSION/wwwroot/umbraco-package.json" ] && [ ! -f "$PATH_TO_EXTENSION/Client/public/umbraco-package.json" ]; then
-          jq '.version = "'"$SEMVER"'"' "$PATH_TO_EXTENSION/wwwroot/umbraco-package.json" > temp.json && mv temp.json "$PATH_TO_EXTENSION/wwwroot/umbraco-package.json"
-          echo "Updated version in $PATH_TO_EXTENSION/wwwroot/umbraco-package.json to $SEMVER"
+        if [ ! -f "$PATH_TO_EXTENSION/Client/public/umbraco-package.json" ]; then
+          UMBRACO_PACKAGE=""
+          if [ -f "$PATH_TO_EXTENSION/wwwroot/umbraco-package.json" ]; then
+            UMBRACO_PACKAGE="$PATH_TO_EXTENSION/wwwroot/umbraco-package.json"
+          else
+            # Search for umbraco-package.json in App_Plugins for non-Client projects
+            FOUND_PACKAGE=$(find "$PATH_TO_EXTENSION/wwwroot" -name "umbraco-package.json" -type f 2>/dev/null | head -n 1)
+            if [ -n "$FOUND_PACKAGE" ]; then
+              UMBRACO_PACKAGE="$FOUND_PACKAGE"
+            fi
+          fi
+          
+          if [ -n "$UMBRACO_PACKAGE" ]; then
+            jq '.version = "'"$SEMVER"'"' "$UMBRACO_PACKAGE" > temp.json && mv temp.json "$UMBRACO_PACKAGE"
+            echo "Updated version in $UMBRACO_PACKAGE to $SEMVER"
+          fi
         fi
         
         # Update package.manifest if it exists (Umbraco v13)
