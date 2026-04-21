@@ -59,9 +59,9 @@ runs:
           UMBRACO_PACKAGE=""
           if [ -f "$PATH_TO_EXTENSION/wwwroot/umbraco-package.json" ]; then
             UMBRACO_PACKAGE="$PATH_TO_EXTENSION/wwwroot/umbraco-package.json"
-          else
-            # Search for umbraco-package.json in App_Plugins for non-Client projects
-            FOUND_PACKAGE=$(find "$PATH_TO_EXTENSION/wwwroot" -name "umbraco-package.json" -type f 2>/dev/null | head -n 1)
+          elif [ -d "$PATH_TO_EXTENSION/wwwroot" ]; then
+            # Search for umbraco-package.json in wwwroot for non-Client projects
+            FOUND_PACKAGE=$(find "$PATH_TO_EXTENSION/wwwroot" -name "umbraco-package.json" -type f 2>/dev/null | head -n 1 || true)
             if [ -n "$FOUND_PACKAGE" ]; then
               UMBRACO_PACKAGE="$FOUND_PACKAGE"
             fi
@@ -79,7 +79,7 @@ runs:
           PACKAGE_MANIFEST="$PATH_TO_EXTENSION/wwwroot/package.manifest"
         else
           # Search for package.manifest in App_Plugins for non-RCL projects
-          FOUND_MANIFEST=$(find "$PATH_TO_EXTENSION" -name "package.manifest" -type f 2>/dev/null | head -n 1)
+          FOUND_MANIFEST=$(find "$PATH_TO_EXTENSION" -name "package.manifest" -type f 2>/dev/null | head -n 1 || true)
           if [ -n "$FOUND_MANIFEST" ]; then
             PACKAGE_MANIFEST="$FOUND_MANIFEST"
           fi
