@@ -36,10 +36,12 @@ runs:
         
         echo "Updating version to $SEMVER in $PATH_TO_EXTENSION"
         
-        # Update Client/public/umbraco-package.json if it exists
-        if [ -f "$PATH_TO_EXTENSION/Client/public/umbraco-package.json" ]; then
-          jq '.version = "'"$SEMVER"'"' "$PATH_TO_EXTENSION/Client/public/umbraco-package.json" > temp.json && mv temp.json "$PATH_TO_EXTENSION/Client/public/umbraco-package.json"
-          echo "Updated version in $PATH_TO_EXTENSION/Client/public/umbraco-package.json to $SEMVER"
+        # Update all umbraco-package.json files in Client/public directory (including subfolders)
+        if [ -d "$PATH_TO_EXTENSION/Client/public" ]; then
+          while IFS= read -r -d '' package_file; do
+            jq '.version = "'"$SEMVER"'"' "$package_file" > temp.json && mv temp.json "$package_file"
+            echo "Updated version in $package_file to $SEMVER"
+          done < <(find "$PATH_TO_EXTENSION/Client/public" -name "umbraco-package.json" -type f -print0 2>/dev/null)
         fi
         
         # Update Client/package.json if it exists
@@ -54,8 +56,8 @@ runs:
           echo "Updated version in $PATH_TO_EXTENSION/package.json to $SEMVER"
         fi
         
-        # Update umbraco-package.json if it exists (but not if Client version exists)
-        if [ ! -f "$PATH_TO_EXTENSION/Client/public/umbraco-package.json" ]; then
+        # Update umbraco-package.json if it exists (but not if Client/public directory exists)
+        if [ ! -d "$PATH_TO_EXTENSION/Client/public" ]; then
           UMBRACO_PACKAGE=""
           if [ -f "$PATH_TO_EXTENSION/wwwroot/umbraco-package.json" ]; then
             UMBRACO_PACKAGE="$PATH_TO_EXTENSION/wwwroot/umbraco-package.json"
